@@ -7,11 +7,47 @@ const videoGrid = document.getElementById("video-grid");
 const myPeer = new Peer(undefined, {
   // peer 서버에 대한 정보
 
-  host: "localhost",
-  port: 3001,
+  host: "0.peerjs.com",
+  port: 443,
 });
-const myVideo = document.createElement("video");
-myVideo.muted = true;
+
+let myStream;
+
+const myVideo = document.getElementById("myVideo");
+let isMuted = true;
+let isCameraOn = false;
+const muteBtn = document.getElementById("mute");
+muteBtn.addEventListener("click", handleMute);
+
+function handleMute() {
+  myStream.getAudioTracks().forEach((track) => {
+    console.log(track.enabled);
+    track.enabled = !track.enabled;
+  });
+  if (isMuted) {
+    isMuted = false;
+    muteBtn.innerText = "unmute";
+  } else {
+    isMuted = true;
+    muteBtn.innerText = "mute";
+  }
+}
+
+const cameraBtn = document.getElementById("camera");
+cameraBtn.addEventListener("click", handleCamera);
+
+function handleCamera() {
+  myStream
+    .getVideoTracks()
+    .forEach((track) => (track.enabled = !track.enabled));
+  if (isCameraOn) {
+    isCameraOn = false;
+    cameraBtn.innerText = "camera off";
+  } else {
+    isCameraOn = true;
+    cameraBtn.innerText = "camera on";
+  }
+}
 
 // 현재 연결된 peer들 map<userId, call>
 const peers = {};
@@ -22,6 +58,7 @@ navigator.mediaDevices
     audio: true,
   })
   .then((stream) => {
+    myStream = stream;
     // video 객체에 stream 추가해줌
     addVideoStream(myVideo, stream);
 
@@ -30,7 +67,9 @@ navigator.mediaDevices
       call.answer(stream);
       // 그리고 상대방의 스트림을 나의 화면에 추가해줌
       const video = document.createElement("video");
-      video.muted = true;
+
+      video.playsInline = true;
+      video.autoplay = true;
 
       call.on("stream", (userVideoStream) => {
         addVideoStream(video, userVideoStream);
@@ -58,7 +97,9 @@ function addVideoStream(video, stream) {
   video.addEventListener("loadedmetadata", () => {
     video.play();
   });
-  videoGrid.append(video);
+  if (video.id != "myVideo") {
+    videoGrid.append(video);
+  }
 }
 
 function connectToNewUser(userId, stream) {
@@ -66,7 +107,9 @@ function connectToNewUser(userId, stream) {
   // 이 객체를 통해 새로운 유저의 스트림을 재생할 수 있고 상대방에게도 나의 스트림이 재생될 수 있음.
   const call = myPeer.call(userId, stream);
   const video = document.createElement("video");
-  video.muted = true;
+
+  video.playsInline = true;
+  video.autoplay = true;
 
   // 상대방의 스트림을 받아서 재생
   call.on("stream", (userVideoStream) => {
